@@ -1,0 +1,132 @@
+<?xml version="1.0"?>
+<workflow-definition
+	xmlns="urn:liferay.com:liferay-workflow_7.1.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:liferay.com:liferay-workflow_7.1.0 http://www.liferay.com/dtd/liferay-workflow-definition_7_1_0.xsd">
+	<version>1</version>
+	<condition>
+		<name>Check order value</name>
+		<metadata>
+			<![CDATA[{"xy":[436,98.80000305175781]}]]>
+		</metadata>
+		<script>
+			<![CDATA[
+			import com.liferay.commerce.model.CommerceOrder;
+			import com.liferay.commerce.service.CommerceOrderLocalService;
+			import org.osgi.framework.Bundle;
+			import org.osgi.framework.BundleContext;
+            import org.osgi.framework.FrameworkUtil;
+            import org.osgi.util.tracker.ServiceTracker;
+            import com.liferay.portal.scripting.groovy.internal.GroovyExecutor;
+			
+			
+			Bundle bundle = FrameworkUtil.getBundle(GroovyExecutor.class);
+            BundleContext bundleContext = bundle.getBundleContext();
+            ServiceTracker<CommerceOrderLocalService, CommerceOrderLocalService> serviceTracker =
+            new ServiceTracker(bundleContext, CommerceOrderLocalService.class, null);
+            serviceTracker.open();
+            CommerceOrderLocalService commerceOrderLocalService = serviceTracker.waitForService(500);
+			Long longEntryClassPK = Long.parseLong(entryClassPK);
+			CommerceOrder currentOrder = commerceOrderLocalService.getCommerceOrder(longEntryClassPK);
+			if (currentOrder.total >= 500)
+			    {returnValue = "Move to assignment";}
+			
+		    else
+		        {returnValue = "Complete workflow";}
+	        return;
+		
+			]]>
+		</script>
+		<script-language>groovy</script-language>
+		<transitions>
+			<transition>
+				<name>Move to assignment</name>
+				<target>Assign to reviewer</target>
+				<default>true</default>
+			</transition>
+			<transition>
+				<name>Complete workflow</name>
+				<target>EndNode</target>
+				<default>false</default>
+			</transition>
+		</transitions>
+	</condition>
+	<state>
+		<name>StartNode</name>
+		<metadata>
+			<![CDATA[{"xy":[49,47.000003814697266]}]]>
+		</metadata>
+		<initial>true</initial>
+		<transitions>
+			<transition>
+				<name>move to condition</name>
+				<target>Check order value</target>
+				<default>true</default>
+			</transition>
+		</transitions>
+	</state>
+	<state>
+		<name>EndNode</name>
+		<metadata>
+			<![CDATA[{"terminal":true,"xy":[702,504.9999885559082]}]]>
+		</metadata>
+		<actions>
+			<action>
+				<name>Approve</name>
+				<description>Approve</description>
+				<script>
+					<![CDATA[com.liferay.portal.kernel.workflow.WorkflowStatusManagerUtil.updateStatus(com.liferay.portal.kernel.workflow.WorkflowConstants.getLabelStatus("approved"), workflowContext);]]>
+				</script>
+				<script-language>groovy</script-language>
+				<execution-type>onEntry</execution-type>
+			</action>
+		</actions>
+	</state>
+	<task>
+		<name>Assign to reviewer</name>
+		<metadata>
+			<![CDATA[{"xy":[253,348.8000068664551]}]]>
+		</metadata>
+		<actions>
+			<action>
+				<name>First action</name>
+				<description></description>
+				<script>
+					<![CDATA[System.out.println(workflowContext.toString());]]>
+				</script>
+				<script-language>groovy</script-language>
+				<execution-type>onAssignment</execution-type>
+			</action>
+			<notification>
+				<name>Notify reviewer</name>
+				<description></description>
+				<template>
+					<![CDATA[You have been assigned to review a commerce order ${entryClassPK}!]]>
+				</template>
+				<template-language>freemarker</template-language>
+				<notification-type>user-notification</notification-type>
+				<recipients receptionType="to">
+					<roles>
+						<role>
+							<role-id>36559</role-id>
+						</role>
+					</roles>
+				</recipients>
+				<execution-type>onAssignment</execution-type>
+			</notification>
+		</actions>
+		<assignments>
+			<roles>
+				<role>
+					<role-id>36559</role-id>
+				</role>
+			</roles>
+		</assignments>
+		<transitions>
+			<transition>
+				<name>Approve</name>
+				<target>EndNode</target>
+				<default>true</default>
+			</transition>
+		</transitions>
+	</task>
+</workflow-definition>
